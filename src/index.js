@@ -155,7 +155,7 @@ export async function run(argv = process.argv) {
     .name('devradar')
     .description('Analyze a code project: line counts, languages, frameworks.')
     .version(version, '-v, --version', 'output the version')
-    .argument('<path>', 'path to the project to analyze')
+    .argument('[path]', 'path to the project to analyze (default: current directory)', '.')
     .option('-p, --pure-code', 'exclude comments and blank lines from totals')
     .option('-a, --advanced', 'include per-file statistics')
     .option('--tech-only', 'only show language and framework detection')

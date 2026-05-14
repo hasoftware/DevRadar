@@ -35,7 +35,8 @@ After global installation the `devradar` command is available from any directory
 
 ## Usage
 
-    devradar <path>
+    devradar              # analyze the current directory
+    devradar <path>       # analyze a specific path
 
 Common options:
 
