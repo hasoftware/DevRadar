@@ -41,6 +41,9 @@ function renderTerminal(report, opts) {
   out.push(chalk.bold.cyan('DevRadar Analysis'));
   out.push(chalk.dim('Project: ') + chalk.white(report.root));
   out.push(chalk.dim('Scanned: ') + chalk.white(report.scannedAt));
+  if (report.engine) {
+    out.push(chalk.dim('Engine:  ') + chalk.white(report.engine));
+  }
   out.push('');
 
   out.push(chalk.bold.cyan('Technologies'));

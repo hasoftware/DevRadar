@@ -21,6 +21,17 @@ DevRadar is under active development. The first usable release is being built in
 ## Requirements
 
 - Node.js 18 or newer
+- Optional: [tokei](https://github.com/XAMPPRocky/tokei) or [cloc](https://github.com/AlDanial/cloc) for faster and more accurate line counting. DevRadar auto-detects them and falls back to its built-in counter if neither is installed.
+
+## Line Counting Engines
+
+DevRadar delegates the actual line counting to the first available tool in this order:
+
+1. **tokei** if found on PATH (fast, Rust)
+2. **cloc** if found on PATH (mature, Perl)
+3. **Built-in counter** as a zero-dependency fallback
+
+Framework detection, manifest parsing, and report formatting are always done by DevRadar itself. The selected engine is printed at the top of every report so you know which one produced the numbers.
 
 ## Installation
 
