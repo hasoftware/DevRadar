@@ -7,6 +7,9 @@ import chalk from 'chalk';
 import { scanProject } from './scanner.js';
 import { detectFrameworks } from './detector.js';
 import { selectEngine } from './engines/index.js';
+import * as tokeiEngine from './engines/tokei.js';
+import * as clocEngine from './engines/cloc.js';
+import * as builtinEngine from './engines/builtin.js';
 import { emitReport } from './reporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,6 +76,22 @@ function collectExcludes(value, previous) {
   return previous.concat([value]);
 }
 
+async function resolveForcedEngine(opts) {
+  if (opts.tokei) return ensureAvailable(tokeiEngine, 'tokei', 'https://github.com/XAMPPRocky/tokei');
+  if (opts.cloc) return ensureAvailable(clocEngine, 'cloc', 'https://github.com/AlDanial/cloc');
+  if (opts.builtin) return builtinEngine;
+  return null;
+}
+
+async function ensureAvailable(engine, label, url) {
+  if (await engine.isAvailable()) return engine;
+  const err = new Error(
+    `--${label} was requested but ${label} is not installed or not on PATH. Install it from ${url}.`,
+  );
+  err.code = 'ENGINE_UNAVAILABLE';
+  throw err;
+}
+
 function inferFormatFromPath(outputPath) {
   const ext = path.extname(outputPath).toLowerCase();
   if (ext === '.json') return 'json';
@@ -103,10 +122,30 @@ export async function run(argv = process.argv) {
       collectExcludes,
       [],
     )
+    .addOption(
+      new Option('--tokei', 'force the tokei line-counting engine').conflicts([
+        'cloc',
+        'builtin',
+      ]),
+    )
+    .addOption(
+      new Option('--cloc', 'force the cloc line-counting engine').conflicts([
+        'tokei',
+        'builtin',
+      ]),
+    )
+    .addOption(
+      new Option('--builtin', 'force the built-in line-counting engine').conflicts([
+        'tokei',
+        'cloc',
+      ]),
+    )
     .action(async (pathArg, opts) => {
       let format = opts.format;
       if (!format && opts.output) format = inferFormatFromPath(opts.output);
       if (!format) format = opts.output ? 'json' : 'terminal';
+
+      const forced = await resolveForcedEngine(opts);
 
       const useSpinner = process.stderr.isTTY && format === 'terminal' && !opts.output;
       const spinner = useSpinner
@@ -115,7 +154,7 @@ export async function run(argv = process.argv) {
 
       let report;
       try {
-        report = await analyze(pathArg, opts);
+        report = await analyze(pathArg, { ...opts, engine: forced });
         if (spinner) spinner.succeed(chalk.green('Analysis complete'));
       } catch (err) {
         if (spinner) spinner.fail(chalk.red('Analysis failed'));

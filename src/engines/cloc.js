@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import spawn from 'cross-spawn';
 import { DEFAULT_EXCLUDED_DIRS } from '../constants/excludes.js';
 
@@ -16,20 +17,37 @@ export async function isAvailable() {
 
 export async function run(rootDir, options = {}) {
   const userExcludes = options.exclude || [];
+  const absRoot = path.resolve(rootDir);
+  const useGit = existsSync(path.join(absRoot, '.git'));
+
   const dirNames = extractDirNames(userExcludes);
   const excludeDirs = [...new Set([...DEFAULT_EXCLUDED_DIRS, ...dirNames])];
 
-  const args = [
-    '--json',
-    '--by-file',
-    '--quiet',
-    '--exclude-dir=' + excludeDirs.join(','),
-    rootDir,
-  ];
+  let args;
+  let spawnOpts = {};
 
-  const stdout = await runCommand('cloc', args);
+  if (useGit) {
+    args = [
+      '--vcs=git',
+      '--json',
+      '--by-file',
+      '--quiet',
+      '--exclude-dir=' + excludeDirs.join(','),
+    ];
+    spawnOpts.cwd = absRoot;
+  } else {
+    args = [
+      '--json',
+      '--by-file',
+      '--quiet',
+      '--exclude-dir=' + excludeDirs.join(','),
+      absRoot,
+    ];
+  }
+
+  const stdout = await runCommand('cloc', args, spawnOpts);
   const data = stdout.trim() ? JSON.parse(stdout) : {};
-  return mapClocResult(data, rootDir, !!options.advanced);
+  return mapClocResult(data, absRoot, !!options.advanced);
 }
 
 function extractDirNames(patterns) {
@@ -44,7 +62,7 @@ function extractDirNames(patterns) {
   return names;
 }
 
-function mapClocResult(data, rootDir, advanced) {
+function mapClocResult(data, absRoot, advanced) {
   const summary = {
     totalFiles: 0,
     totalLines: 0,
@@ -56,7 +74,6 @@ function mapClocResult(data, rootDir, advanced) {
   };
   const byLangMap = new Map();
   const files = [];
-  const absRoot = path.resolve(rootDir);
 
   for (const [key, value] of Object.entries(data)) {
     if (key === 'header' || key === 'SUM') continue;
@@ -93,7 +110,7 @@ function mapClocResult(data, rootDir, advanced) {
     langEntry.blank += blank;
 
     if (advanced) {
-      const abs = path.resolve(key);
+      const abs = path.resolve(absRoot, key);
       const rel = path.relative(absRoot, abs).split(path.sep).join('/');
       files.push({
         relPath: rel || key,
@@ -116,9 +133,9 @@ function mapClocResult(data, rootDir, advanced) {
   };
 }
 
-function runCommand(cmd, args) {
+function runCommand(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { windowsHide: true });
+    const proc = spawn(cmd, args, { windowsHide: true, ...opts });
     let stdout = '';
     let stderr = '';
     proc.stdout.on('data', (d) => (stdout += d));

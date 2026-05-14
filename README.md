@@ -33,6 +33,10 @@ DevRadar delegates the actual line counting to the first available tool in this 
 
 Framework detection, manifest parsing, and report formatting are always done by DevRadar itself. The selected engine is printed at the top of every report so you know which one produced the numbers.
 
+You can force a specific engine with `--tokei`, `--cloc`, or `--builtin`. If the requested engine is not installed, DevRadar exits with a clear message instead of silently falling back.
+
+When the target project is a git repository, the cloc engine automatically uses `cloc --vcs=git` so that the file list is taken from `git ls-files`. This makes cloc and tokei produce comparable numbers because both honor `.gitignore`.
+
 ## Installation
 
 From source:
@@ -57,6 +61,9 @@ Common options:
     devradar . --output report.json   Write the report to a file
     devradar . --format csv           Choose output format: terminal, json, or csv
     devradar . --exclude "test/**"    Add custom exclude patterns (repeatable)
+    devradar . --tokei                Force the tokei engine
+    devradar . --cloc                 Force the cloc engine
+    devradar . --builtin              Force the built-in engine (no external tool)
     devradar --help                   Show help
     devradar --version                Show version
 
