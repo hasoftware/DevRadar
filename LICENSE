@@ -1,0 +1,59 @@
+HASOFTWARE Custom License
+
+Copyright (c) 2026 HASOFTWARE
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to use, copy,
+modify, and merge the Software, subject to the conditions stated below.
+
+1. Permitted Uses
+
+   a. Personal use of the Software.
+   b. Lawful commercial use of the Software in its original form.
+   c. Contributions to the Software through pull requests submitted to the
+      original repository at https://github.com/hasoftware/DevRadar.
+   d. Forking the Software for the purposes of learning, research, and
+      personal experimentation.
+
+2. Prohibited Uses
+
+   a. Copying, repackaging, or otherwise extracting portions of the Software in
+      order to create a derivative product without prior written permission
+      from HASOFTWARE.
+   b. Using the Software, in whole or in part, to develop, distribute, or
+      facilitate any form of malware, spyware, ransomware, or other malicious
+      software.
+   c. Using the Software in connection with any activity that is unlawful under
+      applicable law.
+   d. Redistributing the Software under a different name, brand, or authorship
+      without clearly crediting the original authors and linking back to the
+      original repository.
+
+3. Required Conditions
+
+   a. The above copyright notice and this license must be preserved in all
+      copies or substantial portions of the Software.
+   b. Any fork, redistribution, or contribution must include a visible link
+      back to the original repository at
+      https://github.com/hasoftware/DevRadar.
+   c. Modifications must be clearly marked as such and must not be
+      misrepresented as the original Software.
+
+4. Disclaimer
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+   FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+5. Contact
+
+   For permission requests, licensing inquiries, or questions about the terms
+   of this license, please contact:
+
+   HASOFTWARE
+   Telegram: https://t.me/hasoftware
+   Repository: https://github.com/hasoftware/DevRadar

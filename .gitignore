@@ -1,0 +1,45 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json.bak
+
+# Build artifacts
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Editor and OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test and coverage
+coverage/
+.nyc_output/
+
+# Claude / AI configuration (DO NOT COMMIT)
+.claude/
+CLAUDE.md
+*.claude.md
+.claude-*
+claude-*
+
+# DevRadar local report outputs
+*.devradar.json
+*.devradar.csv
