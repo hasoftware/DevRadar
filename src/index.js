@@ -2,9 +2,12 @@ import path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Command, Option } from 'commander';
+import ora from 'ora';
+import chalk from 'chalk';
 import { scanProject } from './scanner.js';
 import { countFile } from './counter.js';
 import { detectLanguage, detectFrameworks } from './detector.js';
+import { emitReport } from './reporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -168,36 +171,26 @@ export async function run(argv = process.argv) {
       [],
     )
     .action(async (pathArg, opts) => {
-      const report = await analyze(pathArg, opts);
-
-      const reporter = await import('./reporter.js').catch(() => null);
-
       let format = opts.format;
       if (!format && opts.output) format = inferFormatFromPath(opts.output);
       if (!format) format = opts.output ? 'json' : 'terminal';
 
-      if (reporter && typeof reporter.emitReport === 'function') {
-        await reporter.emitReport(report, { ...opts, format });
-      } else {
-        const text =
-          format === 'csv' ? toCsvFallback(report) : JSON.stringify(report, null, 2);
-        if (opts.output) {
-          const { writeFile } = await import('node:fs/promises');
-          await writeFile(opts.output, text, 'utf8');
-          console.log(`Report written to ${opts.output}`);
-        } else {
-          process.stdout.write(text + '\n');
-        }
+      const useSpinner = process.stderr.isTTY && format === 'terminal' && !opts.output;
+      const spinner = useSpinner
+        ? ora({ text: 'Analyzing project...', spinner: 'dots', stream: process.stderr }).start()
+        : null;
+
+      let report;
+      try {
+        report = await analyze(pathArg, opts);
+        if (spinner) spinner.succeed(chalk.green('Analysis complete'));
+      } catch (err) {
+        if (spinner) spinner.fail(chalk.red('Analysis failed'));
+        throw err;
       }
+
+      await emitReport(report, { ...opts, format });
     });
 
   await program.parseAsync(argv);
-}
-
-function toCsvFallback(report) {
-  const rows = [['language', 'files', 'total', 'code', 'comment', 'blank']];
-  for (const lang of report.byLanguage) {
-    rows.push([lang.language, lang.files, lang.total, lang.code, lang.comment, lang.blank]);
-  }
-  return rows.map((r) => r.join(',')).join('\n');
 }
