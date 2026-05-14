@@ -50,7 +50,16 @@ function indexByBasename(files) {
   return map;
 }
 
-async function detectFromNodePackageJson(packageFiles, sets) {
+const NODE_LOCKFILES = [
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+  'bun.lock',
+];
+
+async function detectFromNodePackageJson(packageFiles, byBasename, sets) {
+  if (packageFiles.length === 0) return;
   for (const f of packageFiles) {
     const pkg = await readJsonSafe(f.absPath);
     if (!pkg) continue;
@@ -70,6 +79,8 @@ async function detectFromNodePackageJson(packageFiles, sets) {
       if (pm) sets.packageManagers.add(pm);
     }
   }
+  const hasNodeLock = NODE_LOCKFILES.some((n) => byBasename.has(n));
+  if (!hasNodeLock) sets.packageManagers.add('npm');
 }
 
 async function detectFromRequirementsTxt(files, sets) {
@@ -251,7 +262,7 @@ export async function detectFrameworks(_root, files) {
   const byBasename = indexByBasename(files);
   const get = (name) => byBasename.get(name) || [];
 
-  await detectFromNodePackageJson(get('package.json'), sets);
+  await detectFromNodePackageJson(get('package.json'), byBasename, sets);
   await detectFromRequirementsTxt(get('requirements.txt'), sets);
   await detectFromPyprojectToml(get('pyproject.toml'), sets);
   await detectFromPipfile(get('pipfile'), sets);

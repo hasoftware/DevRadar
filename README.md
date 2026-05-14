@@ -37,16 +37,51 @@ After global installation the `devradar` command is available from any directory
 
     devradar <path>
 
-Common options that will be supported:
+Common options:
 
-    devradar . --pure-code            Exclude comments and blank lines
-    devradar . --advanced             Per-file analysis
-    devradar . --tech-only            Only show language and framework detection
+    devradar . --pure-code            Exclude comments and blank lines from totals
+    devradar . --advanced             Add per-file statistics to the report
+    devradar . --tech-only            Show only language and framework detection
     devradar . --output report.json   Write the report to a file
-    devradar . --format csv           Choose output format (json or csv)
-    devradar . --exclude "test/**"    Add custom exclude patterns
+    devradar . --format csv           Choose output format: terminal, json, or csv
+    devradar . --exclude "test/**"    Add custom exclude patterns (repeatable)
     devradar --help                   Show help
     devradar --version                Show version
+
+When `--output` is given without `--format`, the format is inferred from the file extension (.json or .csv); otherwise the default is `terminal`.
+
+### Example
+
+    $ devradar .
+
+    DevRadar Analysis
+    Project: /home/dev/example-app
+    Scanned: 2026-05-14T08:55:39Z
+
+    Technologies
+    Frameworks       : Express, React
+    Package managers : npm
+    Build tools      : Vite
+    Databases        : PostgreSQL
+
+    Summary
+    Files:    142
+    Total:    8,432 lines
+    Code:     6,210
+    Comments: 1,022
+    Blank:    1,200
+
+    By Language
+    +------------+-------+-------+-------+----------+-------+
+    | Language   | Files | Total | Code  | Comments | Blank |
+    +------------+-------+-------+-------+----------+-------+
+    | JavaScript |    80 | 4,500 | 3,200 |      600 |   700 |
+    | TypeScript |    32 | 2,100 | 1,500 |      280 |   320 |
+    +------------+-------+-------+-------+----------+-------+
+
+### Environment variables
+
+- `DEVRADAR_DEBUG=1` prints a full stack trace when an error occurs.
 
 ## Supported Languages
 
