@@ -13,10 +13,13 @@ DevRadar is a fast, read-only inspector. It walks a project directory, ignores t
 - Respect the project's .gitignore and exclude common dependency directories
 - Export reports as JSON or CSV
 - Read-only by design: DevRadar never modifies the project being analyzed
-
-## Status
-
-DevRadar is under active development. The first usable release is being built in seven incremental phases. This file will be expanded with examples and full option documentation as each phase lands.
+- Monorepo support: detect and analyze workspaces separately
+- Compare mode: diff current results against a previous JSON report
+- Remote Git URL support: analyze any public repository by URL
+- Interactive mode: guided option selection via terminal prompts
+- Visual bar chart showing language distribution
+- Config file support (.devradarrc.json) for project-level defaults
+- Sortable tables by name, lines, code, or file count
 
 ## Requirements
 
@@ -38,6 +41,10 @@ You can force a specific engine with `--tokei`, `--cloc`, or `--builtin`. If the
 When the target project is a git repository, the cloc engine automatically uses `cloc --vcs=git` so that the file list is taken from `git ls-files`. This makes cloc and tokei produce comparable numbers because both honor `.gitignore`.
 
 ## Installation
+
+From npm:
+
+    npm install -g @hasoftware/devradar
 
 From source:
 
@@ -64,6 +71,11 @@ Common options:
     devradar . --tokei                Force the tokei engine
     devradar . --cloc                 Force the cloc engine
     devradar . --builtin              Force the built-in engine (no external tool)
+    devradar . --sort code            Sort tables by name, lines, code, or files
+    devradar . --monorepo             Detect and analyze workspaces separately
+    devradar . --compare prev.json    Compare against a previous JSON report
+    devradar . --interactive          Launch interactive mode for guided setup
+    devradar https://github.com/user/repo   Analyze a remote Git repository
     devradar --help                   Show help
     devradar --version                Show version
 
@@ -97,6 +109,18 @@ When `--output` is given without `--format`, the format is inferred from the fil
     | JavaScript |    80 | 4,500 | 3,200 |      600 |   700 |
     | TypeScript |    32 | 2,100 | 1,500 |      280 |   320 |
     +------------+-------+-------+-------+----------+-------+
+
+### Config File
+
+Place a `.devradarrc.json` in your project root to set default options:
+
+    {
+      "pureCode": true,
+      "sort": "code",
+      "exclude": ["test/**", "docs/**"]
+    }
+
+CLI flags override config file values.
 
 ### Environment variables
 

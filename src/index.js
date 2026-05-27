@@ -10,7 +10,12 @@ import { selectEngine } from './engines/index.js';
 import * as tokeiEngine from './engines/tokei.js';
 import * as clocEngine from './engines/cloc.js';
 import * as builtinEngine from './engines/builtin.js';
-import { emitReport } from './reporter.js';
+import { emitReport, emitCompareReport, emitMonorepoReport } from './reporter.js';
+import { detectMonorepo } from './monorepo.js';
+import { loadPreviousReport, computeDiff } from './compare.js';
+import { isRemoteUrl, cloneToTemp, cleanup } from './remote.js';
+import { runInteractive } from './interactive.js';
+import { loadConfig, mergeConfig } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -99,6 +104,26 @@ function inferFormatFromPath(outputPath) {
   return null;
 }
 
+async function handleMonorepo(rootPath, mono, opts) {
+  const results = {
+    type: mono.type,
+    workspaces: [],
+    aggregate: { totalFiles: 0, totalLines: 0, codeLines: 0, commentLines: 0, blankLines: 0 },
+  };
+
+  for (const ws of mono.workspaces) {
+    const report = await analyze(ws.absPath, opts);
+    results.workspaces.push({ name: ws.name, path: ws.path, report });
+    results.aggregate.totalFiles += report.summary.totalFiles;
+    results.aggregate.totalLines += report.summary.totalLines;
+    results.aggregate.codeLines += report.summary.codeLines;
+    results.aggregate.commentLines += report.summary.commentLines;
+    results.aggregate.blankLines += report.summary.blankLines;
+  }
+
+  return results;
+}
+
 export async function run(argv = process.argv) {
   const program = new Command();
   const version = await readPackageVersion();
@@ -107,7 +132,7 @@ export async function run(argv = process.argv) {
     .name('devradar')
     .description('Analyze a code project: line counts, languages, frameworks.')
     .version(version, '-v, --version', 'output the version')
-    .argument('[path]', 'path to the project to analyze (default: current directory)', '.')
+    .argument('[path]', 'path to the project (or a Git URL) to analyze (default: current directory)', '.')
     .option('-p, --pure-code', 'exclude comments and blank lines from totals')
     .option('-a, --advanced', 'include per-file statistics')
     .option('--tech-only', 'only show language and framework detection')
@@ -140,28 +165,106 @@ export async function run(argv = process.argv) {
         'cloc',
       ]),
     )
+    .option('-i, --interactive', 'launch interactive mode to select options')
+    .option('--monorepo', 'detect and analyze workspaces separately')
+    .option('--compare <file>', 'compare against a previous JSON report')
+    .addOption(
+      new Option('-s, --sort <field>', 'sort tables by field')
+        .choices(['name', 'lines', 'code', 'files']),
+    )
     .action(async (pathArg, opts) => {
-      let format = opts.format;
-      if (!format && opts.output) format = inferFormatFromPath(opts.output);
-      if (!format) format = opts.output ? 'json' : 'terminal';
-
-      const forced = await resolveForcedEngine(opts);
-
-      const useSpinner = process.stderr.isTTY && format === 'terminal' && !opts.output;
-      const spinner = useSpinner
-        ? ora({ text: 'Analyzing project...', spinner: 'dots', stream: process.stderr }).start()
-        : null;
-
-      let report;
-      try {
-        report = await analyze(pathArg, { ...opts, engine: forced });
-        if (spinner) spinner.succeed(chalk.green('Analysis complete'));
-      } catch (err) {
-        if (spinner) spinner.fail(chalk.red('Analysis failed'));
-        throw err;
+      if (opts.interactive) {
+        const interactiveOpts = await runInteractive();
+        pathArg = interactiveOpts.path;
+        opts = { ...opts, ...interactiveOpts };
       }
 
-      await emitReport(report, { ...opts, format });
+      const fileConfig = await loadConfig(pathArg === '.' ? process.cwd() : pathArg);
+      opts = mergeConfig(opts, fileConfig);
+
+      let targetPath = pathArg;
+      let tempDir = null;
+
+      if (isRemoteUrl(pathArg)) {
+        const useSpinner = process.stderr.isTTY;
+        const cloneSpinner = useSpinner
+          ? ora({ text: `Cloning ${pathArg}...`, spinner: 'dots', stream: process.stderr }).start()
+          : null;
+        try {
+          tempDir = await cloneToTemp(pathArg);
+          targetPath = tempDir;
+          if (cloneSpinner) cloneSpinner.succeed(chalk.green('Repository cloned'));
+        } catch (err) {
+          if (cloneSpinner) cloneSpinner.fail(chalk.red('Clone failed'));
+          throw err;
+        }
+      }
+
+      try {
+        let format = opts.format;
+        if (!format && opts.output) format = inferFormatFromPath(opts.output);
+        if (!format) format = opts.output ? 'json' : 'terminal';
+
+        const forced = await resolveForcedEngine(opts);
+
+        if (opts.compare) {
+          const previous = await loadPreviousReport(opts.compare);
+          const useSpinner = process.stderr.isTTY && format === 'terminal' && !opts.output;
+          const spinner = useSpinner
+            ? ora({ text: 'Analyzing project...', spinner: 'dots', stream: process.stderr }).start()
+            : null;
+          let report;
+          try {
+            report = await analyze(targetPath, { ...opts, engine: forced });
+            if (spinner) spinner.succeed(chalk.green('Analysis complete'));
+          } catch (err) {
+            if (spinner) spinner.fail(chalk.red('Analysis failed'));
+            throw err;
+          }
+          const diff = computeDiff(previous, report);
+          await emitCompareReport(diff, { ...opts, format });
+          return;
+        }
+
+        if (opts.monorepo) {
+          const mono = await detectMonorepo(targetPath);
+          if (!mono) {
+            console.log(chalk.yellow('No monorepo workspaces detected. Running standard analysis.'));
+          } else {
+            const useSpinner = process.stderr.isTTY && format === 'terminal' && !opts.output;
+            const spinner = useSpinner
+              ? ora({ text: `Analyzing ${mono.workspaces.length} workspaces...`, spinner: 'dots', stream: process.stderr }).start()
+              : null;
+            try {
+              const results = await handleMonorepo(targetPath, mono, { ...opts, engine: forced });
+              if (spinner) spinner.succeed(chalk.green('Monorepo analysis complete'));
+              await emitMonorepoReport(results, { ...opts, format });
+              return;
+            } catch (err) {
+              if (spinner) spinner.fail(chalk.red('Monorepo analysis failed'));
+              throw err;
+            }
+          }
+        }
+
+        const useSpinner = process.stderr.isTTY && format === 'terminal' && !opts.output;
+        const spinner = useSpinner
+          ? ora({ text: 'Analyzing project...', spinner: 'dots', stream: process.stderr }).start()
+          : null;
+
+        let report;
+        try {
+          report = await analyze(targetPath, { ...opts, engine: forced });
+          if (spinner) spinner.succeed(chalk.green('Analysis complete'));
+        } catch (err) {
+          if (spinner) spinner.fail(chalk.red('Analysis failed'));
+          throw err;
+        }
+
+        await emitReport(report, { ...opts, format });
+      } finally {
+        if (tempDir) await cleanup(tempDir);
+      }
     });
 
   await program.parseAsync(argv);

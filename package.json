@@ -1,14 +1,24 @@
 {
-  "name": "devradar",
-  "version": "0.1.0",
+  "name": "@hasoftware/devradar",
+  "version": "1.1.0",
   "description": "A CLI tool to analyze code projects: count lines of code, detect programming languages, and identify frameworks in use.",
   "type": "module",
   "main": "src/index.js",
   "bin": {
     "devradar": "./bin/devradar.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
-    "start": "node bin/devradar.js"
+    "start": "node bin/devradar.js",
+    "test": "node --test test/*.test.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "cli",
@@ -17,6 +27,7 @@
     "line-counter",
     "language-detection",
     "framework-detection",
+    "monorepo",
     "devradar",
     "hasoftware"
   ],

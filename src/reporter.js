@@ -1,9 +1,36 @@
 import { writeFile } from 'node:fs/promises';
 import chalk from 'chalk';
 import Table from 'cli-table3';
+import { renderBarChart } from './chart.js';
 
 const nf = new Intl.NumberFormat('en-US');
 const fmt = (n) => nf.format(n ?? 0);
+
+function signedFmt(n) {
+  if (n > 0) return chalk.green(`+${nf.format(n)}`);
+  if (n < 0) return chalk.red(nf.format(n));
+  return chalk.dim('0');
+}
+
+export function sortData(items, sortField, type = 'language') {
+  if (!sortField || !items) return items;
+  const copy = [...items];
+  const key = sortField.toLowerCase();
+
+  const sorters = {
+    name: (a, b) => {
+      const aName = type === 'file' ? a.relPath : a.language;
+      const bName = type === 'file' ? b.relPath : b.language;
+      return aName.localeCompare(bName);
+    },
+    lines: (a, b) => (b.total ?? 0) - (a.total ?? 0),
+    code: (a, b) => (b.code ?? 0) - (a.code ?? 0),
+    files: (a, b) => (b.files ?? 0) - (a.files ?? 0),
+  };
+
+  if (sorters[key]) copy.sort(sorters[key]);
+  return copy;
+}
 
 export async function emitReport(report, opts = {}) {
   const format = opts.format || 'terminal';
@@ -24,6 +51,62 @@ export async function emitReport(report, opts = {}) {
   }
 }
 
+export async function emitCompareReport(diff, opts = {}) {
+  const format = opts.format || 'terminal';
+
+  if (format === 'json') {
+    return writeOrPrint(JSON.stringify(diff, null, 2), opts.output);
+  }
+
+  const text = renderCompareTerminal(diff);
+  if (opts.output) {
+    await writeFile(opts.output, stripAnsi(text), 'utf8');
+    console.log(chalk.green(`Comparison written to ${opts.output}`));
+  } else {
+    process.stdout.write(text);
+  }
+}
+
+export async function emitMonorepoReport(results, opts = {}) {
+  const format = opts.format || 'terminal';
+
+  if (format === 'json') {
+    return writeOrPrint(JSON.stringify(results, null, 2), opts.output);
+  }
+
+  const lines = [];
+  lines.push('');
+  lines.push(chalk.bold.cyan(`DevRadar Monorepo Analysis`));
+  lines.push(chalk.dim(`Type: `) + chalk.white(results.type));
+  lines.push(chalk.dim(`Workspaces: `) + chalk.white(results.workspaces.length));
+  lines.push('');
+
+  for (const ws of results.workspaces) {
+    lines.push(chalk.bold.yellow(`── ${ws.name} `) + chalk.dim(`(${ws.path})`));
+    const s = ws.report.summary;
+    lines.push(`   Files: ${fmt(s.totalFiles)}  Code: ${chalk.green(fmt(s.codeLines))}  Total: ${fmt(s.totalLines)}`);
+    if (ws.report.technologies.frameworks.length > 0) {
+      lines.push(`   Frameworks: ${chalk.white(ws.report.technologies.frameworks.join(', '))}`);
+    }
+    lines.push('');
+  }
+
+  const agg = results.aggregate;
+  lines.push(chalk.bold.cyan('Aggregate Summary'));
+  lines.push(chalk.dim('Total files: ') + fmt(agg.totalFiles));
+  lines.push(chalk.dim('Total lines: ') + fmt(agg.totalLines));
+  lines.push(chalk.dim('Code lines:  ') + chalk.green(fmt(agg.codeLines)));
+  lines.push('');
+
+  const text = lines.join('\n');
+  if (opts.output) {
+    await writeFile(opts.output, stripAnsi(text), 'utf8');
+    console.log(chalk.green(`Report written to ${opts.output}`));
+  } else {
+    process.stdout.write(text);
+  }
+}
+
 async function writeOrPrint(text, output) {
   if (output) {
     await writeFile(output, text, 'utf8');
@@ -36,6 +119,7 @@ async function writeOrPrint(text, output) {
 function renderTerminal(report, opts) {
   const out = [];
   const pureCode = !!opts.pureCode;
+  const sortField = opts.sort;
 
   out.push('');
   out.push(chalk.bold.cyan('DevRadar Analysis'));
@@ -74,15 +158,78 @@ function renderTerminal(report, opts) {
   }
   out.push('');
 
-  if (report.byLanguage.length > 0) {
+  const sortedLangs = sortData(report.byLanguage, sortField, 'language');
+
+  if (sortedLangs.length > 0) {
+    out.push(renderBarChart(sortedLangs));
+
     out.push(chalk.bold.cyan('By Language'));
-    out.push(renderLanguageTable(report.byLanguage, pureCode));
+    if (sortField) out.push(chalk.dim(`  (sorted by ${sortField})`));
+    out.push(renderLanguageTable(sortedLangs, pureCode));
     out.push('');
   }
 
   if (opts.advanced && report.files && report.files.length > 0) {
+    const sortedFiles = sortData(report.files, sortField, 'file');
     out.push(chalk.bold.cyan('Per-File Details'));
-    out.push(renderFileTable(report.files, pureCode));
+    if (sortField) out.push(chalk.dim(`  (sorted by ${sortField})`));
+    out.push(renderFileTable(sortedFiles, pureCode));
+    out.push('');
+  }
+
+  return out.join('\n');
+}
+
+function renderCompareTerminal(diff) {
+  const out = [];
+  out.push('');
+  out.push(chalk.bold.cyan('DevRadar Comparison'));
+  out.push(chalk.dim('Previous: ') + chalk.white(diff.previousDate));
+  out.push(chalk.dim('Current:  ') + chalk.white(diff.currentDate));
+  out.push('');
+
+  out.push(chalk.bold.cyan('Summary Changes'));
+  const fields = [
+    ['totalFiles', 'Files'],
+    ['totalLines', 'Total lines'],
+    ['codeLines', 'Code'],
+    ['commentLines', 'Comments'],
+    ['blankLines', 'Blank'],
+  ];
+  for (const [key, label] of fields) {
+    const d = diff.summaryDiff[key];
+    if (!d) continue;
+    out.push(
+      `  ${chalk.dim(label.padEnd(14))} ${fmt(d.prev)} → ${fmt(d.curr)}  (${signedFmt(d.delta)})`,
+    );
+  }
+  out.push('');
+
+  if (diff.added.length > 0) {
+    out.push(chalk.green('+ Languages added: ') + diff.added.join(', '));
+  }
+  if (diff.removed.length > 0) {
+    out.push(chalk.red('- Languages removed: ') + diff.removed.join(', '));
+  }
+  if (diff.techDiff.addedFrameworks.length > 0) {
+    out.push(chalk.green('+ Frameworks added: ') + diff.techDiff.addedFrameworks.join(', '));
+  }
+  if (diff.techDiff.removedFrameworks.length > 0) {
+    out.push(chalk.red('- Frameworks removed: ') + diff.techDiff.removedFrameworks.join(', '));
+  }
+  out.push('');
+
+  if (diff.languageDiffs.length > 0) {
+    out.push(chalk.bold.cyan('Language Changes'));
+    const table = new Table({
+      head: ['Language', 'Prev Code', 'Curr Code', 'Delta'].map((h) => chalk.bold(h)),
+      colAligns: ['left', 'right', 'right', 'right'],
+    });
+    for (const ld of diff.languageDiffs) {
+      if (ld.delta === 0) continue;
+      table.push([ld.language, fmt(ld.prevCode), fmt(ld.currCode), signedFmt(ld.delta)]);
+    }
+    if (table.length > 0) out.push(table.toString());
     out.push('');
   }
 
