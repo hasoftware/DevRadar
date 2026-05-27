@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/hasoftware/DevRadar/main/assets/banner.jpg" alt="DevRadar Banner" width="100%" />
-</p>
-
 <h1 align="center">DevRadar</h1>
 
 <p align="center">
@@ -16,6 +12,10 @@
   <a href="https://github.com/hasoftware/DevRadar"><img src="https://img.shields.io/github/stars/hasoftware/DevRadar?style=flat-square&logo=github&label=stars" alt="GitHub stars" /></a>
   <a href="https://t.me/hasoftware"><img src="https://img.shields.io/badge/Telegram-@hasoftware-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram" /></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-HASOFTWARE-blue?style=flat-square" alt="License" /></a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/hasoftware/DevRadar/main/assets/banner.jpg" alt="DevRadar Banner" width="680" />
 </p>
 
 ---
